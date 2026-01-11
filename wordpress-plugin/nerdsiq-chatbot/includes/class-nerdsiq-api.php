@@ -62,7 +62,7 @@ class NerdsIQ_API {
      * Login user
      */
     public function login($username, $password) {
-        return $this->request('api/v1/auth/login', 'POST', [
+        return $this->request('api/v1/auth/login/json', 'POST', [
             'username' => $username,
             'password' => $password,
         ]);

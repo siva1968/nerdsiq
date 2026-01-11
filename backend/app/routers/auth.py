@@ -90,6 +90,7 @@ async def login(
     Authenticate user and return JWT token.
     
     Uses OAuth2 password flow with email as username.
+    Accepts form data (application/x-www-form-urlencoded).
     """
     result = await db.execute(select(User).where(User.email == form_data.username))
     user = result.scalar_one_or_none()
@@ -99,6 +100,36 @@ async def login(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
             headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account is disabled",
+        )
+    
+    access_token = create_access_token(data={"sub": user.email})
+    
+    return TokenResponse(access_token=access_token)
+
+
+@router.post("/login/json", response_model=TokenResponse)
+async def login_json(
+    request: LoginRequest,
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
+    """
+    Authenticate user and return JWT token.
+    
+    Accepts JSON body with username/password.
+    """
+    result = await db.execute(select(User).where(User.email == request.username))
+    user = result.scalar_one_or_none()
+    
+    if not user or not verify_password(request.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
         )
     
     if not user.is_active:

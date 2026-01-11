@@ -109,11 +109,22 @@
                     this.showChat();
                     this.addMessage('Hello! How can I help you today?', 'assistant');
                 } else {
-                    $error.text(response.data.message || 'Login failed').show();
+                    // Handle error response properly
+                    let errorMsg = 'Login failed';
+                    if (response.data && typeof response.data === 'object' && response.data.message) {
+                        errorMsg = response.data.message;
+                    } else if (typeof response.data === 'string') {
+                        errorMsg = response.data;
+                    }
+                    $error.text(errorMsg).show();
                 }
             } catch (error) {
                 console.error('Login error:', error);
-                $error.text('Connection error. Please try again.').show();
+                let errorMsg = 'Connection error. Please try again.';
+                if (error.responseJSON && error.responseJSON.data && error.responseJSON.data.message) {
+                    errorMsg = error.responseJSON.data.message;
+                }
+                $error.text(errorMsg).show();
             } finally {
                 $button.prop('disabled', false).text('Login');
             }
