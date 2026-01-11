@@ -6,7 +6,7 @@ from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import HumanMessage, AIMessage
 from qdrant_client import QdrantClient
-from qdrant_client.http.models import Filter
+from qdrant_client.http.models import Distance, VectorParams
 from loguru import logger
 
 from app.config import settings
@@ -18,6 +18,7 @@ from app.services.embedding_service import EmbeddingService
 CHUNK_SIZE = 500      # tokens - increase for technical docs, decrease for FAQs
 CHUNK_OVERLAP = 50    # tokens - 10% overlap recommended minimum
 TOP_K = 5             # retrieval count - balance relevance vs context length
+VECTOR_SIZE = 1536    # OpenAI text-embedding-3-small dimension
 
 
 class RAGService:
@@ -34,6 +35,9 @@ class RAGService:
             port=settings.qdrant_port,
         )
         
+        # Ensure collection exists
+        self._ensure_collection()
+        
         # Initialize LLM
         self.llm = ChatOpenAI(
             model=settings.openai_model,
@@ -48,7 +52,7 @@ class RAGService:
         # System prompt for RAG
         self.system_prompt = """You are NerdsIQ, a helpful AI assistant for NerdsToGo staff.
 Answer questions based on the provided context from company documents.
-If the context doesn't contain relevant information, say so clearly.
+If the context doesn't contain relevant information, say so clearly but still try to be helpful.
 Always be professional, concise, and helpful.
 
 Context from documents:
@@ -57,6 +61,22 @@ Context from documents:
 Previous conversation:
 {history}
 """
+
+    def _ensure_collection(self) -> None:
+        """Ensure the Qdrant collection exists, create if not."""
+        collections = self.qdrant.get_collections().collections
+        collection_names = [c.name for c in collections]
+        
+        if settings.qdrant_collection not in collection_names:
+            logger.info(f"Creating Qdrant collection: {settings.qdrant_collection}")
+            self.qdrant.create_collection(
+                collection_name=settings.qdrant_collection,
+                vectors_config=VectorParams(
+                    size=VECTOR_SIZE,
+                    distance=Distance.COSINE,
+                ),
+            )
+            logger.info(f"Collection {settings.qdrant_collection} created")
 
     def _get_memory(self, session_id: str) -> list[dict[str, str]]:
         """Get conversation memory for a session."""
@@ -98,11 +118,11 @@ Previous conversation:
         question_embedding = await self.embeddings.embed_text(question)
         
         # Step 3: Search Qdrant for relevant chunks
-        search_results = self.qdrant.search(
+        search_results = self.qdrant.query_points(
             collection_name=settings.qdrant_collection,
-            query_vector=question_embedding,
+            query=question_embedding,
             limit=TOP_K,
-        )
+        ).points
         
         # Step 4: Build context from retrieved chunks
         context_parts = []
