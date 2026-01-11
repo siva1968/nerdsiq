@@ -1,8 +1,6 @@
 # NerdsIQ Docker Compose
 # Run: docker-compose up -d
 
-version: '3.8'
-
 services:
   # Qdrant Vector Database
   qdrant:
@@ -45,8 +43,51 @@ services:
       - ./backend/credentials:/app/credentials:ro
       - nerdsiq_data:/app/data
 
+  # MySQL Database for WordPress
+  mysql:
+    image: mysql:8.0
+    container_name: nerdsiq-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: wordpress
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # WordPress
+  wordpress:
+    image: wordpress:latest
+    container_name: nerdsiq-wordpress
+    ports:
+      - "8080:80"
+    environment:
+      WORDPRESS_DB_HOST: mysql:3306
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DEBUG: 1
+    volumes:
+      - wordpress_data:/var/www/html
+      - ./wordpress-plugin/nerdsiq-chatbot:/var/www/html/wp-content/plugins/nerdsiq-chatbot
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   qdrant_data:
     driver: local
   nerdsiq_data:
+    driver: local
+  mysql_data:
+    driver: local
+  wordpress_data:
     driver: local
