@@ -12,6 +12,15 @@ class LoginRequest(BaseModel):
     password: str = Field(..., min_length=8, description="User password")
 
 
+class WordPressAuthRequest(BaseModel):
+    """WordPress SSO authentication request."""
+
+    email: EmailStr = Field(..., description="WordPress user email")
+    wp_user_id: int = Field(..., description="WordPress user ID")
+    display_name: str | None = Field(None, description="WordPress display name")
+    wp_secret: str = Field(..., description="Shared secret for WordPress authentication")
+
+
 class TokenResponse(BaseModel):
     """JWT token response schema."""
 

@@ -1,8 +1,8 @@
 /* NerdsIQ Chatbot Styles */
 
 :root {
-    --nerdsiq-blue: #0047AC;
-    --nerdsiq-yellow: #FFD301;
+    --nerdsiq-primary: #0047AC;
+    --nerdsiq-accent: #FFD301;
     --nerdsiq-white: #FFFFFF;
     --nerdsiq-gray: #F5F5F5;
     --nerdsiq-dark: #333333;
@@ -13,10 +13,20 @@
 /* Widget Container */
 .nerdsiq-widget {
     position: fixed;
-    bottom: 20px;
-    right: 20px;
+    bottom: var(--nerdsiq-bottom-padding, 20px);
+    right: var(--nerdsiq-side-padding, 20px);
     z-index: 9999;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+}
+
+.nerdsiq-widget.position-bottom-left {
+    right: auto;
+    left: var(--nerdsiq-side-padding, 20px);
+}
+
+.nerdsiq-widget.position-bottom-left .nerdsiq-chat-window {
+    right: auto;
+    left: 0;
 }
 
 /* Toggle Button */
@@ -24,7 +34,7 @@
     width: 60px;
     height: 60px;
     border-radius: 50%;
-    background: var(--nerdsiq-blue);
+    background: var(--nerdsiq-primary);
     border: none;
     cursor: pointer;
     box-shadow: var(--nerdsiq-shadow);
@@ -36,7 +46,7 @@
 
 .nerdsiq-toggle:hover {
     transform: scale(1.05);
-    background: #003890;
+    filter: brightness(0.9);
 }
 
 .nerdsiq-toggle svg {
@@ -72,9 +82,41 @@
     display: flex;
 }
 
+/* Maximized State */
+.nerdsiq-chat-window.maximized {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    right: 20px;
+    bottom: 20px;
+    width: auto;
+    max-height: none;
+    border-radius: 12px;
+    z-index: 10000;
+}
+
+.nerdsiq-chat-window.maximized .nerdsiq-messages {
+    max-height: none;
+    flex: 1;
+}
+
+/* Mobile maximized */
+@media (max-width: 480px) {
+    .nerdsiq-chat-window.maximized,
+    .nerdsiq-chat-window.open {
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        border-radius: 0;
+        width: 100%;
+        max-width: 100%;
+    }
+}
+
 /* Header */
 .nerdsiq-header {
-    background: var(--nerdsiq-blue);
+    background: var(--nerdsiq-primary);
     color: var(--nerdsiq-white);
     padding: 16px 20px;
     display: flex;
@@ -85,13 +127,13 @@
 .nerdsiq-header__logo {
     width: 36px;
     height: 36px;
-    background: var(--nerdsiq-yellow);
+    background: var(--nerdsiq-accent);
     border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: bold;
-    color: var(--nerdsiq-blue);
+    color: var(--nerdsiq-primary);
     font-size: 14px;
 }
 
@@ -107,16 +149,134 @@
     margin: 0;
 }
 
+.nerdsiq-header__actions {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+}
+
+.nerdsiq-header__actions button {
+    background: rgba(255, 255, 255, 0.15);
+    border: none;
+    border-radius: 6px;
+    padding: 6px;
+    cursor: pointer;
+    color: var(--nerdsiq-white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.nerdsiq-header__actions button:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+/* History Panel */
+.nerdsiq-history-panel {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--nerdsiq-white);
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+}
+
+.nerdsiq-history-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--nerdsiq-light-gray);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.nerdsiq-history-header h4 {
+    margin: 0;
+    font-size: 16px;
+    color: var(--nerdsiq-dark);
+}
+
+.nerdsiq-close-history {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--nerdsiq-dark);
+    padding: 0;
+    line-height: 1;
+}
+
+.nerdsiq-history-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+}
+
+.nerdsiq-history-loading {
+    text-align: center;
+    padding: 20px;
+    color: #666;
+}
+
+.nerdsiq-history-item {
+    padding: 12px;
+    border: 1px solid var(--nerdsiq-light-gray);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.nerdsiq-history-item:hover {
+    background: var(--nerdsiq-gray);
+}
+
+.nerdsiq-history-item__preview {
+    font-size: 14px;
+    color: var(--nerdsiq-dark);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 4px;
+}
+
+.nerdsiq-history-item__meta {
+    font-size: 11px;
+    color: #888;
+    display: flex;
+    gap: 8px;
+}
+
+.nerdsiq-history-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: #888;
+}
+
+/* Chat Content Area */
+.nerdsiq-chat-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
 /* Messages Container */
 .nerdsiq-messages {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 16px;
     display: flex;
     flex-direction: column;
     gap: 12px;
-    min-height: 250px;
+    min-height: 0; /* Important for flex scrolling */
     max-height: 350px;
+    -webkit-overflow-scrolling: touch; /* Smooth scroll on iOS */
 }
 
 /* Message Bubbles */
@@ -130,7 +290,7 @@
 
 .nerdsiq-message.user {
     align-self: flex-end;
-    background: var(--nerdsiq-blue);
+    background: var(--nerdsiq-primary);
     color: var(--nerdsiq-white);
     border-bottom-right-radius: 4px;
 }
@@ -142,6 +302,52 @@
     border-bottom-left-radius: 4px;
 }
 
+/* Markdown content styling in assistant messages */
+.nerdsiq-message.assistant p {
+    margin: 0 0 8px 0;
+}
+
+.nerdsiq-message.assistant p:last-child {
+    margin-bottom: 0;
+}
+
+.nerdsiq-message.assistant h3,
+.nerdsiq-message.assistant h4 {
+    margin: 12px 0 8px 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--nerdsiq-primary);
+}
+
+.nerdsiq-message.assistant h3:first-child,
+.nerdsiq-message.assistant h4:first-child {
+    margin-top: 0;
+}
+
+.nerdsiq-message.assistant strong {
+    font-weight: 600;
+    color: var(--nerdsiq-primary);
+}
+
+.nerdsiq-message.assistant em {
+    font-style: italic;
+}
+
+.nerdsiq-message.assistant ol,
+.nerdsiq-message.assistant ul {
+    margin: 8px 0;
+    padding-left: 20px;
+}
+
+.nerdsiq-message.assistant li {
+    margin-bottom: 6px;
+    line-height: 1.4;
+}
+
+.nerdsiq-message.assistant li:last-child {
+    margin-bottom: 0;
+}
+
 .nerdsiq-message__sources {
     margin-top: 8px;
     padding-top: 8px;
@@ -150,7 +356,7 @@
 }
 
 .nerdsiq-message__sources a {
-    color: var(--nerdsiq-blue);
+    color: var(--nerdsiq-primary);
     text-decoration: none;
 }
 
@@ -205,14 +411,14 @@
 }
 
 .nerdsiq-input:focus {
-    border-color: var(--nerdsiq-blue);
+    border-color: var(--nerdsiq-primary);
 }
 
 .nerdsiq-send {
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: var(--nerdsiq-blue);
+    background: var(--nerdsiq-primary);
     border: none;
     cursor: pointer;
     display: flex;
@@ -261,12 +467,12 @@
 }
 
 .nerdsiq-login__input:focus {
-    border-color: var(--nerdsiq-blue);
+    border-color: var(--nerdsiq-primary);
 }
 
 .nerdsiq-login__button {
     padding: 12px;
-    background: var(--nerdsiq-blue);
+    background: var(--nerdsiq-primary);
     color: var(--nerdsiq-white);
     border: none;
     border-radius: 8px;
@@ -291,25 +497,317 @@
     text-align: center;
 }
 
+/* Login Message (for SSO) */
+.nerdsiq-login__message {
+    text-align: center;
+    padding: 20px;
+}
+
+.nerdsiq-login__message p {
+    margin: 0 0 16px 0;
+    color: var(--nerdsiq-dark);
+    font-size: 14px;
+}
+
+.nerdsiq-login__message a.nerdsiq-login__button {
+    display: inline-block;
+    text-decoration: none;
+}
+
+/* Clear Chat Button */
+.nerdsiq-clear-chat {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--nerdsiq-gray);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+
+.nerdsiq-clear-chat:hover {
+    background: var(--nerdsiq-light-gray);
+}
+
+.nerdsiq-clear-chat svg {
+    fill: var(--nerdsiq-dark);
+}
+
 /* Mobile Responsive */
+
+/* Tablets and smaller desktops */
+@media (max-width: 768px) {
+    .nerdsiq-chat-window {
+        width: 340px;
+        max-height: 450px;
+    }
+}
+
+/* Large phones */
+@media (max-width: 600px) {
+    .nerdsiq-chat-window {
+        width: calc(100vw - 40px);
+        max-width: 380px;
+        max-height: 70vh;
+    }
+    
+    .nerdsiq-widget {
+        bottom: 10px !important;
+        right: 10px !important;
+        left: auto !important;
+    }
+    
+    .nerdsiq-widget.position-bottom-left {
+        right: auto !important;
+        left: 10px !important;
+    }
+    
+    .nerdsiq-toggle {
+        width: 54px;
+        height: 54px;
+    }
+    
+    .nerdsiq-toggle svg {
+        width: 24px;
+        height: 24px;
+    }
+}
+
+/* Small phones - full screen mode */
 @media (max-width: 480px) {
+    /* Hide WordPress admin bar on mobile when chat is open */
+    body.nerdsiq-chat-open #wpadminbar {
+        display: none !important;
+    }
+    
+    /* Prevent horizontal scroll when chat is open */
+    html.nerdsiq-chat-open,
+    body.nerdsiq-chat-open {
+        overflow-x: hidden !important;
+        width: 100% !important;
+        max-width: 100vw !important;
+    }
+    
+    body.nerdsiq-chat-open.admin-bar .nerdsiq-chat-window {
+        top: 0 !important;
+    }
+    
     .nerdsiq-chat-window {
         position: fixed;
         top: 0;
-        left: 0;
-        right: 0;
+        left: 0 !important;
+        right: 0 !important;
         bottom: 0;
-        width: 100%;
+        width: 100% !important;
+        max-width: 100vw !important;
+        height: 100%;
         max-height: 100%;
         border-radius: 0;
+        z-index: 100001;
+        overflow: hidden;
+        box-sizing: border-box;
+    }
+    
+    .nerdsiq-chat-window.open {
+        display: flex;
+        flex-direction: column;
+        height: 100dvh; /* Dynamic viewport height - adjusts for mobile keyboard */
+        max-height: 100dvh;
+    }
+    
+    .nerdsiq-chat-content {
+        display: flex !important;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
     }
     
     .nerdsiq-messages {
         max-height: none;
         flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
     }
     
     .nerdsiq-toggle.active {
         display: none;
     }
+    
+    .nerdsiq-header {
+        padding: 12px 16px;
+        flex-shrink: 0;
+        display: flex !important;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .nerdsiq-header__actions {
+        display: flex !important;
+        margin-left: auto;
+        gap: 6px;
+    }
+    
+    .nerdsiq-header__actions button {
+        display: flex !important;
+        width: 32px;
+        height: 32px;
+        padding: 6px;
+    }
+    
+    .nerdsiq-header__logo {
+        width: 32px;
+        height: 32px;
+        font-size: 12px;
+        flex-shrink: 0;
+    }
+    
+    .nerdsiq-header__title {
+        font-size: 16px;
+    }
+    
+    .nerdsiq-header__subtitle {
+        font-size: 11px;
+    }
+    
+    .nerdsiq-input-area {
+        padding: 10px 12px;
+        flex-shrink: 0;
+        background: var(--nerdsiq-white);
+    }
+    
+    .nerdsiq-message {
+        max-width: 90%;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+}
+
+/* Very small phones */
+@media (max-width: 360px) {
+    .nerdsiq-header__actions button {
+        padding: 4px;
+    }
+    
+    .nerdsiq-header__actions {
+        gap: 4px;
+    }
+}
+
+/* Landscape mode on phones */
+@media (max-height: 500px) and (orientation: landscape) {
+    .nerdsiq-chat-window {
+        max-height: 90vh;
+    }
+    
+    .nerdsiq-chat-window.maximized,
+    .nerdsiq-chat-window {
+        top: 5px;
+        bottom: 5px;
+    }
+}
+
+/* Document Modal Viewer */
+.nerdsiq-doc-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 100002;
+    align-items: center;
+    justify-content: center;
+}
+
+.nerdsiq-doc-modal {
+    background: white;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 1200px;
+    height: 90vh;
+    max-height: 800px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.nerdsiq-doc-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e5e5e5;
+    background: #f9f9f9;
+    border-radius: 8px 8px 0 0;
+}
+
+.nerdsiq-doc-modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+}
+
+.nerdsiq-doc-modal-close {
+    background: none;
+    border: none;
+    font-size: 32px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+    transition: color 0.2s;
+}
+
+.nerdsiq-doc-modal-close:hover {
+    color: #000;
+}
+
+.nerdsiq-doc-modal-content {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+}
+
+.nerdsiq-doc-loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 16px;
+    color: #666;
+    text-align: center;
+}
+
+.nerdsiq-doc-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: white;
+}
+
+.nerdsiq-view-doc {
+    color: var(--nerdsiq-blue);
+    text-decoration: none;
+    cursor: pointer;
+    font-size: 13px;
+    transition: color 0.2s;
+}
+
+.nerdsiq-view-doc:hover {
+    color: #003580;
+    text-decoration: underline;
 }

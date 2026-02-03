@@ -10,6 +10,7 @@ from app.database import Base
 
 if TYPE_CHECKING:
     from app.models.conversation import Conversation
+    from app.models.analytics import QueryLog, UserActivity
 
 
 class User(Base):
@@ -32,6 +33,12 @@ class User(Base):
     # Relationships
     conversations: Mapped[list["Conversation"]] = relationship(
         "Conversation", back_populates="user", cascade="all, delete-orphan"
+    )
+    query_logs: Mapped[list["QueryLog"]] = relationship(
+        "QueryLog", back_populates="user", cascade="all, delete-orphan"
+    )
+    activities: Mapped[list["UserActivity"]] = relationship(
+        "UserActivity", back_populates="user", cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:

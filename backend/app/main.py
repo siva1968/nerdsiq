@@ -9,7 +9,12 @@ from loguru import logger
 
 from app.config import settings
 from app.database import create_tables
-from app.routers import auth, chat, health
+from app.routers import auth, chat, health, analytics
+from app.security import (
+    RateLimitMiddleware,
+    SecurityHeadersMiddleware,
+    AuditLogMiddleware,
+)
 
 
 @asynccontextmanager
@@ -39,19 +44,30 @@ app = FastAPI(
     redoc_url="/redoc" if settings.is_development else None,
 )
 
+# Add security middlewares (order matters - first added = last executed)
+app.add_middleware(AuditLogMiddleware)
+app.add_middleware(RateLimitMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
+
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Requested-With"],
+    expose_headers=["X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset"],
 )
 
 # Register routers
 app.include_router(health.router, tags=["Health"])
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(chat.router, prefix="/api/v1/chat", tags=["Chat"])
+app.include_router(analytics.router, prefix="/api/v1", tags=["Analytics"])
+
+# Import documents router
+from app.routers import documents
+app.include_router(documents.router, prefix="/api/v1/documents", tags=["Documents"])
 
 
 @app.get("/")

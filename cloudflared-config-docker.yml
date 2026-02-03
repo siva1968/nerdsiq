@@ -1,0 +1,17 @@
+# Cloudflare Tunnel Configuration for NerdsIQ (Docker version)
+# This exposes local Docker services to the internet via Cloudflare
+
+tunnel: 491b5174-1a4a-4a24-97e4-76c8783a39a8
+credentials-file: /etc/cloudflared/credentials/491b5174-1a4a-4a24-97e4-76c8783a39a8.json
+
+ingress:
+  # API endpoint (use Docker service name)
+  - hostname: nerdsiq-api.getinstantleads.in
+    service: http://api:8000
+  
+  # WordPress frontend (use Docker service name)
+  - hostname: nerdsiq.getinstantleads.in
+    service: http://wordpress:80
+  
+  # Catch-all (required)
+  - service: http_status:404

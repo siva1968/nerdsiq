@@ -1,0 +1,96 @@
+# NerdsIQ Production Docker Compose
+# Deploy: docker-compose -f docker-compose.prod.yml up -d
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16.2-alpine  # Same version as dev
+    container_name: nerdsiq-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-nerdsiq}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-nerdsiq}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # No port exposure in production (internal only)
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nerdsiq} -d ${POSTGRES_DB:-nerdsiq}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - nerdsiq-internal
+
+  # Qdrant Vector Database
+  qdrant:
+    image: qdrant/qdrant:v1.7.4  # Pin version for consistency
+    container_name: nerdsiq-qdrant
+    # No port exposure in production (internal only)
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__GRPC_PORT=6334
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 5 bash -c '</dev/tcp/localhost/6333' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - nerdsiq-internal
+
+  # NerdsIQ Backend API
+  api:
+    image: nerdsiq-api:${VERSION:-latest}
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: nerdsiq-api
+    ports:
+      - "127.0.0.1:8000:8000"  # Only localhost, Nginx handles external
+    environment:
+      - APP_ENV=production
+      - DEBUG=false
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-nerdsiq}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-nerdsiq}
+    env_file:
+      - ./backend/.env.prod
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    restart: always
+    volumes:
+      - ./backend/credentials:/app/credentials:ro
+    networks:
+      - nerdsiq-internal
+      - nerdsiq-external
+
+  # Cloudflare Tunnel (production access)
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: nerdsiq-cloudflared
+    command: tunnel run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - api
+    restart: always
+    networks:
+      - nerdsiq-external
+
+volumes:
+  postgres_data:
+    driver: local
+  qdrant_data:
+    driver: local
+
+networks:
+  nerdsiq-internal:
+    driver: bridge
+    internal: true  # No external access
+  nerdsiq-external:
+    driver: bridge

@@ -92,12 +92,15 @@ async def index_documents() -> None:
         )
         logger.info(f"Recreated Qdrant collection: {settings.qdrant_collection}")
     
-    # Get files from Google Drive
-    files = drive.list_files()
+    # Get files from Google Drive (recursive)
+    logger.info("Scanning Google Drive folder recursively...")
+    files = drive.list_files_recursive()
     
     if not files:
         logger.warning("No files found in Google Drive folder!")
         return
+    
+    logger.info(f"Found {len(files)} files total to index")
     
     total_chunks = 0
     point_id = 0
@@ -105,7 +108,13 @@ async def index_documents() -> None:
     for file_info in files:
         file_id = file_info["id"]
         file_name = file_info["name"]
+        mime_type = file_info.get("mimeType", "")
         web_url = file_info.get("webViewLink", drive.get_file_url(file_id))
+        
+        # Skip folders
+        if mime_type == "application/vnd.google-apps.folder":
+            logger.info(f"Skipping folder: {file_name}")
+            continue
         
         logger.info(f"Processing: {file_name}")
         

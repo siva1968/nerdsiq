@@ -34,11 +34,19 @@ class Settings(BaseSettings):
     # Google Drive
     google_service_account_file: str = "./credentials/google-service-account.json"
     google_drive_folder_id: str = ""
+    
+    # Google OAuth (alternative to service account for restricted orgs)
+    google_oauth_client_file: str = "./credentials/oauth-client.json"
+    google_oauth_token_file: str = "./credentials/oauth-token.json"
+    google_auth_method: str = "auto"  # "service_account", "oauth", or "auto"
 
     # JWT
     jwt_secret_key: str
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 60
+
+    # WordPress SSO
+    wp_auth_secret: str = ""  # Shared secret for WordPress SSO
 
     # CORS
     cors_origins: str = "http://localhost:3000"

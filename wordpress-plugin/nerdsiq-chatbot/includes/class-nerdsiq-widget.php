@@ -47,8 +47,11 @@ class NerdsIQ_Widget {
             $session_id = wp_generate_uuid4();
         }
         
+        // Get selected model from settings
+        $model = get_option('nerdsiq_openai_model', 'gpt-4o');
+        
         // Call API
-        $result = $this->api->query($question, $session_id, $token);
+        $result = $this->api->query($question, $session_id, $token, $model);
         
         if ($result['success']) {
             wp_send_json_success([
