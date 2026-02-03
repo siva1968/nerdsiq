@@ -1,5 +1,13 @@
 # NerdsIQ Production Docker Compose
 # Deploy: docker-compose -f docker-compose.prod.yml up -d
+#
+# PRODUCTION ARCHITECTURE:
+# - Backend API (this server): FastAPI + PostgreSQL + Qdrant
+# - Frontend (WPEngine): WordPress plugin at www.atiserve.com/ntg
+# - Access: Cloudflare Tunnel (no exposed ports)
+#
+# NOTE: WordPress/MySQL are NOT needed here - WordPress is on WPEngine.
+#       This only runs the API that the WordPress plugin connects to.
 
 services:
   # PostgreSQL Database

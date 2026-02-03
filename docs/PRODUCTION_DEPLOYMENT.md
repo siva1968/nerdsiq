@@ -1,11 +1,34 @@
 # NerdsIQ Production Deployment Guide
 
-## Overview
+## Architecture Overview
 
-This guide covers deploying NerdsIQ to a DigitalOcean droplet with:
-- **Backend API**: FastAPI + PostgreSQL + Qdrant
-- **Access**: Cloudflare Tunnel (no exposed ports)
-- **Frontend**: WordPress plugin on WPEngine (www.atiserve.com)
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         PRODUCTION                               │
+├─────────────────────────────┬───────────────────────────────────┤
+│   WPEngine (WordPress)      │   DigitalOcean (Backend API)      │
+│   www.atiserve.com/ntg      │   api.nerdsiq.com                 │
+│                             │                                   │
+│   ┌───────────────────┐     │   ┌─────────────────────────┐    │
+│   │ WordPress Plugin  │────────▶│ FastAPI Backend         │    │
+│   │ (nerdsiq-chatbot) │  API    │ ├── PostgreSQL          │    │
+│   └───────────────────┘  calls  │ ├── Qdrant (vectors)    │    │
+│                             │   │ └── Cloudflare Tunnel   │    │
+│   Hosted by WPEngine        │   └─────────────────────────┘    │
+│   (we only upload plugin)   │   Managed by Docker Compose      │
+└─────────────────────────────┴───────────────────────────────────┘
+```
+
+**What goes where:**
+
+| Component | Location | Notes |
+|-----------|----------|-------|
+| WordPress | WPEngine (www.atiserve.com) | Managed hosting, we upload plugin only |
+| NerdsIQ Plugin | WPEngine `/wp-content/plugins/` | Chat widget + API client |
+| Backend API | DigitalOcean Droplet | FastAPI, Docker Compose |
+| PostgreSQL | DigitalOcean (Docker) | User data, conversations |
+| Qdrant | DigitalOcean (Docker) | Document vectors for RAG |
+| Cloudflare Tunnel | DigitalOcean (Docker) | Secure API access |
 
 ## Prerequisites
 
