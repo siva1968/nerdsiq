@@ -25,7 +25,7 @@ class NerdsIQ_API {
         
         $args = [
             'method' => $method,
-            'timeout' => 30,
+            'timeout' => 60, // Increased for complex RAG queries
             'headers' => [
                 'Content-Type' => 'application/json',
                 'Accept' => 'application/json',

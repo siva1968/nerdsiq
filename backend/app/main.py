@@ -9,7 +9,7 @@ from loguru import logger
 
 from app.config import settings
 from app.database import create_tables
-from app.routers import auth, chat, health, analytics
+from app.routers import auth, chat, health, analytics, logs
 from app.security import (
     RateLimitMiddleware,
     SecurityHeadersMiddleware,
@@ -64,6 +64,7 @@ app.include_router(health.router, tags=["Health"])
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(chat.router, prefix="/api/v1/chat", tags=["Chat"])
 app.include_router(analytics.router, prefix="/api/v1", tags=["Analytics"])
+app.include_router(logs.router, prefix="/api/v1/logs", tags=["Logs"])
 
 # Import documents router
 from app.routers import documents

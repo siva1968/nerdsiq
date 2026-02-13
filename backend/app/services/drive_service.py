@@ -241,7 +241,65 @@ class DriveService:
             buffer.seek(0)
             content = self._extract_pdf_text(buffer)
             
+        # Handle Excel files (.xlsx)
+        elif mime_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" or file_name.endswith(".xlsx"):
+            request = self.service.files().get_media(fileId=file_id)
+            buffer = io.BytesIO()
+            downloader = MediaIoBaseDownload(buffer, request)
+            done = False
+            while not done:
+                _, done = downloader.next_chunk()
+            buffer.seek(0)
+            content = self._extract_xlsx_text(buffer)
+            
+        # Handle CSV files
+        elif mime_type == "text/csv" or file_name.endswith(".csv"):
+            request = self.service.files().get_media(fileId=file_id)
+            buffer = io.BytesIO()
+            downloader = MediaIoBaseDownload(buffer, request)
+            done = False
+            while not done:
+                _, done = downloader.next_chunk()
+            content = buffer.getvalue().decode("utf-8", errors="ignore")
+            
+        # Handle HTML files
+        elif mime_type == "text/html" or file_name.endswith((".html", ".htm")):
+            request = self.service.files().get_media(fileId=file_id)
+            buffer = io.BytesIO()
+            downloader = MediaIoBaseDownload(buffer, request)
+            done = False
+            while not done:
+                _, done = downloader.next_chunk()
+            buffer.seek(0)
+            content = self._extract_html_text(buffer)
+            
         # Handle plain text files
+        elif mime_type == "text/plain" or file_name.endswith(".txt"):
+            request = self.service.files().get_media(fileId=file_id)
+            buffer = io.BytesIO()
+            downloader = MediaIoBaseDownload(buffer, request)
+            done = False
+            while not done:
+                _, done = downloader.next_chunk()
+            content = buffer.getvalue().decode("utf-8", errors="ignore")
+            
+        # Handle old Word documents (.doc)
+        elif mime_type == "application/msword" or file_name.endswith(".doc"):
+            request = self.service.files().get_media(fileId=file_id)
+            buffer = io.BytesIO()
+            downloader = MediaIoBaseDownload(buffer, request)
+            done = False
+            while not done:
+                _, done = downloader.next_chunk()
+            buffer.seek(0)
+            content = self._extract_doc_text(buffer)
+            
+        # Handle old Excel files (.xls)
+        elif mime_type == "application/vnd.ms-excel" or file_name.endswith(".xls"):
+            logger.warning(f"Old Excel format (.xls) not fully supported: {file_name}")
+            return ""
+            
+        # Skip unsupported file types
         else:
             request = self.service.files().get_media(fileId=file_id)
             buffer = io.BytesIO()
@@ -299,6 +357,75 @@ class DriveService:
             return "\n\n".join(text_parts)
         except Exception as e:
             logger.warning(f"Failed to extract PDF text: {e}")
+            return ""
+    
+    def _extract_xlsx_text(self, file_buffer: io.BytesIO) -> str:
+        """Extract text from an Excel file."""
+        try:
+            from openpyxl import load_workbook
+            wb = load_workbook(file_buffer, read_only=True, data_only=True)
+            text_parts = []
+            
+            for sheet_name in wb.sheetnames:
+                sheet = wb[sheet_name]
+                sheet_text = [f"Sheet: {sheet_name}"]
+                
+                for row in sheet.iter_rows(values_only=True):
+                    row_text = []
+                    for cell in row:
+                        if cell is not None and str(cell).strip():
+                            row_text.append(str(cell))
+                    if row_text:
+                        sheet_text.append(" | ".join(row_text))
+                
+                if len(sheet_text) > 1:  # Has content beyond sheet name
+                    text_parts.append("\n".join(sheet_text))
+            
+            wb.close()
+            return "\n\n".join(text_parts)
+        except Exception as e:
+            logger.warning(f"Failed to extract xlsx text: {e}")
+            return ""
+    
+    def _extract_html_text(self, file_buffer: io.BytesIO) -> str:
+        """Extract text from an HTML file."""
+        try:
+            from bs4 import BeautifulSoup
+            
+            # Try to detect encoding
+            raw_content = file_buffer.read()
+            try:
+                import chardet
+                detected = chardet.detect(raw_content)
+                encoding = detected.get('encoding', 'utf-8')
+            except:
+                encoding = 'utf-8'
+            
+            html_content = raw_content.decode(encoding, errors='ignore')
+            soup = BeautifulSoup(html_content, 'lxml')
+            
+            # Remove script and style elements
+            for script in soup(["script", "style", "meta", "link"]):
+                script.decompose()
+            
+            # Get text
+            text = soup.get_text(separator='\n', strip=True)
+            
+            # Clean up whitespace
+            lines = [line.strip() for line in text.splitlines() if line.strip()]
+            return "\n".join(lines)
+        except Exception as e:
+            logger.warning(f"Failed to extract HTML text: {e}")
+            return ""
+    
+    def _extract_doc_text(self, file_buffer: io.BytesIO) -> str:
+        """Extract text from an old Word document (.doc)."""
+        try:
+            import mammoth
+            result = mammoth.extract_raw_text(file_buffer)
+            return result.value
+        except Exception as e:
+            logger.warning(f"Failed to extract .doc text: {e}")
             return ""
 
     def get_file_url(self, file_id: str) -> str:

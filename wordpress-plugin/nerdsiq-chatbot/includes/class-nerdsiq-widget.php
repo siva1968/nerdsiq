@@ -47,11 +47,14 @@ class NerdsIQ_Widget {
             $session_id = wp_generate_uuid4();
         }
         
-        // Get selected model from settings
-        $model = get_option('nerdsiq_openai_model', 'gpt-4o');
+        // Get selected model from settings (default to gpt-4o-mini for speed)
+        $model = get_option('nerdsiq_openai_model', 'gpt-4o-mini');
         
         // Call API
         $result = $this->api->query($question, $session_id, $token, $model);
+        
+        // Debug logging
+        error_log('NerdsIQ Query Result: ' . print_r($result, true));
         
         if ($result['success']) {
             wp_send_json_success([
@@ -63,7 +66,7 @@ class NerdsIQ_Widget {
             $message = $result['data']['detail'] ?? 'Query failed';
             
             // Check for auth errors
-            if ($result['status_code'] === 401) {
+            if (isset($result['status_code']) && $result['status_code'] === 401) {
                 wp_send_json_error([
                     'message' => 'Session expired. Please log in again.',
                     'code' => 'auth_expired',

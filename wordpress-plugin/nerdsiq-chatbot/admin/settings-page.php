@@ -68,7 +68,7 @@ $saved = isset($_GET['settings-updated']);
                     <label for="nerdsiq_openai_model">AI Model</label>
                 </th>
                 <td>
-                    <?php $current_model = get_option('nerdsiq_openai_model', 'gpt-4o'); ?>
+                    <?php $current_model = get_option('nerdsiq_openai_model', 'gpt-4o-mini'); ?>
                     <select id="nerdsiq_openai_model" name="nerdsiq_openai_model" class="regular-text">
                         <option value="gpt-4o" <?php selected($current_model, 'gpt-4o'); ?>>
                             GPT-4o (Most Accurate - $5/1M tokens)

@@ -1,0 +1,13 @@
+# Cloudflare Tunnel Configuration for Onyx POC
+# Replace TUNNEL_ID with your actual tunnel ID after creation
+
+tunnel: YOUR_TUNNEL_ID_HERE
+credentials-file: d:\dev\nerdsiq\danswer-poc\tunnel-credentials.json
+
+ingress:
+  # Onyx web interface
+  - hostname: onyx.getinstantleads.in
+    service: http://localhost:3100
+  
+  # Catch-all (required)
+  - service: http_status:404

@@ -1,0 +1,260 @@
+# Production Docker Compose for Danswer
+# Use this for DigitalOcean deployment with security hardening
+
+version: '3.8'
+
+services:
+  api_server:
+    image: danswer/danswer-backend:latest
+    container_name: danswer-api-prod
+    restart: always
+    depends_on:
+      - postgres
+      - redis
+      - qdrant
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=danswer
+      - POSTGRES_USER=danswer
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - SECRET_KEY=${SECRET_KEY}
+      - WEB_DOMAIN=${WEB_DOMAIN}
+      - LOG_LEVEL=warning
+      - ENABLE_METRICS=true
+    expose:
+      - "8080"
+    volumes:
+      - danswer_data:/app/data
+      - danswer_logs:/app/logs
+    networks:
+      - danswer-network
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  background:
+    image: danswer/danswer-backend:latest
+    container_name: danswer-background-prod
+    restart: always
+    depends_on:
+      - postgres
+      - redis
+      - qdrant
+    command: ["python", "-m", "danswer.background.celery_worker"]
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=danswer
+      - POSTGRES_USER=danswer
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - SECRET_KEY=${SECRET_KEY}
+      - LOG_LEVEL=warning
+      - NUM_INDEXING_WORKERS=${NUM_INDEXING_WORKERS:-2}
+    volumes:
+      - danswer_data:/app/data
+      - danswer_logs:/app/logs
+    networks:
+      - danswer-network
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+
+  web_server:
+    image: danswer/danswer-web-server:latest
+    container_name: danswer-web-prod
+    restart: always
+    depends_on:
+      - api_server
+    environment:
+      - INTERNAL_URL=http://api_server:8080
+      - WEB_DOMAIN=${WEB_DOMAIN}
+    expose:
+      - "3000"
+    networks:
+      - danswer-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: danswer-postgres-prod
+    restart: always
+    environment:
+      - POSTGRES_DB=danswer
+      - POSTGRES_USER=danswer
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_MAX_CONNECTIONS=100
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - postgres_backups:/backups
+    networks:
+      - danswer-network
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U danswer"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: 
+      - "postgres"
+      - "-c"
+      - "shared_buffers=256MB"
+      - "-c"
+      - "effective_cache_size=1GB"
+      - "-c"
+      - "maintenance_work_mem=64MB"
+      - "-c"
+      - "checkpoint_completion_target=0.9"
+      - "-c"
+      - "wal_buffers=16MB"
+      - "-c"
+      - "default_statistics_target=100"
+
+  redis:
+    image: redis:7-alpine
+    container_name: danswer-redis-prod
+    restart: always
+    command: 
+      - "redis-server"
+      - "--appendonly"
+      - "yes"
+      - "--maxmemory"
+      - "512mb"
+      - "--maxmemory-policy"
+      - "allkeys-lru"
+    volumes:
+      - redis_data:/data
+    networks:
+      - danswer-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: danswer-qdrant-prod
+    restart: always
+    volumes:
+      - qdrant_data:/qdrant/storage
+      - qdrant_snapshots:/qdrant/snapshots
+    networks:
+      - danswer-network
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:6333/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Nginx reverse proxy (handles SSL termination)
+  nginx:
+    image: nginx:alpine
+    container_name: danswer-nginx
+    restart: always
+    depends_on:
+      - web_server
+      - api_server
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    networks:
+      - danswer-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+
+  # PostgreSQL backup cron job
+  postgres_backup:
+    image: postgres:15-alpine
+    container_name: danswer-backup
+    restart: always
+    depends_on:
+      - postgres
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_DB=danswer
+      - POSTGRES_USER=danswer
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_backups:/backups
+      - ./backup-script.sh:/backup-script.sh:ro
+    networks:
+      - danswer-network
+    entrypoint: /bin/sh
+    command: 
+      - -c
+      - |
+        while true; do
+          sleep 86400  # 24 hours
+          /backup-script.sh
+        done
+
+volumes:
+  danswer_data:
+    driver: local
+  danswer_logs:
+    driver: local
+  postgres_data:
+    driver: local
+  postgres_backups:
+    driver: local
+  redis_data:
+    driver: local
+  qdrant_data:
+    driver: local
+  qdrant_snapshots:
+    driver: local
+  nginx_logs:
+    driver: local
+
+networks:
+  danswer-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

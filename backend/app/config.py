@@ -47,6 +47,22 @@ class Settings(BaseSettings):
 
     # WordPress SSO
     wp_auth_secret: str = ""  # Shared secret for WordPress SSO
+    
+    # Email Configuration  
+    smtp_server: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    from_email: str = ""
+    notification_emails: str = ""  # Comma-separated email addresses
+    
+    # Zepto Mail API Configuration (preferred over SMTP)
+    zeptomail_api_key: str = ""  # Zoho API key
+    zeptomail_region: str = "in"  # in, com, eu based on your region
+    use_zeptomail_api: bool = True  # Use API instead of SMTP when available
+    
+    # Webhook Configuration
+    webhook_callback_base_url: str = "https://your-domain.com"  # Base URL for webhook callbacks
 
     # CORS
     cors_origins: str = "http://localhost:3000"
@@ -61,6 +77,23 @@ class Settings(BaseSettings):
     def cors_origins_list(self) -> list[str]:
         """Parse CORS origins from comma-separated string."""
         return [origin.strip() for origin in self.cors_origins.split(",")]
+    
+    @property
+    def notification_emails_list(self) -> list[str]:
+        """Parse notification emails from comma-separated string."""
+        if not self.notification_emails:
+            return []
+        return [email.strip() for email in self.notification_emails.split(",") if email.strip()]
+    
+    @property
+    def zeptomail_api_url(self) -> str:
+        """Get Zepto Mail API URL based on region."""
+        region_map = {
+            "in": "https://api.zeptomail.in/v1.1/email",
+            "com": "https://api.zeptomail.com/v1.1/email", 
+            "eu": "https://api.zeptomail.eu/v1.1/email"
+        }
+        return region_map.get(self.zeptomail_region, region_map["com"])
 
     @property
     def is_development(self) -> bool:

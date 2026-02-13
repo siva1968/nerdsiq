@@ -1,0 +1,142 @@
+version: '3.8'
+
+services:
+  # Danswer API Backend
+  api_server:
+    image: danswer/danswer-backend:latest
+    container_name: danswer-api
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
+      - qdrant
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=danswer
+      - POSTGRES_USER=danswer
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme123}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
+      - WEB_DOMAIN=http://localhost:3100
+      - LOG_LEVEL=info
+    ports:
+      - "8180:8080"
+    volumes:
+      - danswer_data:/app/data
+    networks:
+      - danswer-network
+
+  # Danswer Background Workers
+  background:
+    image: danswer/danswer-backend:latest
+    container_name: danswer-background
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
+      - qdrant
+    command: ["python", "-m", "danswer.background.celery_worker"]
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=danswer
+      - POSTGRES_USER=danswer
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme123}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
+      - LOG_LEVEL=info
+    volumes:
+      - danswer_data:/app/data
+    networks:
+      - danswer-network
+
+  # Danswer Web UI
+  web_server:
+    image: danswer/danswer-web-server:latest
+    container_name: danswer-web
+    restart: unless-stopped
+    depends_on:
+      - api_server
+    environment:
+      - INTERNAL_URL=http://api_server:8080
+      - WEB_DOMAIN=http://localhost:3100
+    ports:
+      - "3100:3000"
+    networks:
+      - danswer-network
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: danswer-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=danswer
+      - POSTGRES_USER=danswer
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme123}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5532:5432"
+    networks:
+      - danswer-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U danswer"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: danswer-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6479:6379"
+    networks:
+      - danswer-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Qdrant Vector Database
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: danswer-qdrant
+    restart: unless-stopped
+    volumes:
+      - qdrant_data:/qdrant/storage
+    ports:
+      - "6433:6333"
+      - "6434:6334"
+    networks:
+      - danswer-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:6333/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  danswer_data:
+  postgres_data:
+  redis_data:
+  qdrant_data:
+
+networks:
+  danswer-network:
+    driver: bridge

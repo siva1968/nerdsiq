@@ -1,5 +1,6 @@
 """RAG (Retrieval-Augmented Generation) service."""
 
+import asyncio
 from typing import Any
 
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
@@ -8,6 +9,8 @@ from langchain_core.messages import HumanMessage, AIMessage
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams, Filter, FieldCondition, MatchText
 from loguru import logger
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from openai import RateLimitError
 
 from app.config import settings
 from app.services.cache_service import CacheService
@@ -39,11 +42,13 @@ class RAGService:
         # Ensure collection exists
         self._ensure_collection()
         
-        # Initialize LLM
+        # Initialize LLM with rate limiting
         self.llm = ChatOpenAI(
             model=settings.openai_model,
             api_key=settings.openai_api_key,
             temperature=0.7,
+            request_timeout=30,  # 30 second timeout
+            max_retries=3,
         )
         
         # Session memories - simple dict storing last k exchanges (in production, use Redis)
@@ -141,12 +146,13 @@ Return ONLY the expanded search query (no explanation), optimized for semantic s
         question_embedding = await self.embeddings.embed_text(expanded_query)
         
         # Step 4: Search Qdrant for relevant chunks (semantic search)
-        search_results = self.qdrant.query_points(
+        # Using search() for Qdrant client 1.7.3 compatibility
+        search_results = self.qdrant.search(
             collection_name=settings.qdrant_collection,
-            query=question_embedding,
+            query_vector=question_embedding,
             limit=TOP_K,
             with_payload=True,
-        ).points
+        )
         
         # Step 5: Secondary search - title/filename matching
         title_results = await self._search_by_title(question)
@@ -210,6 +216,11 @@ Return ONLY the expanded search query (no explanation), optimized for semantic s
         
         return answer, sources
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=30),
+        retry=retry_if_exception_type((RateLimitError, Exception))
+    )
     async def _expand_query(self, question: str) -> str:
         """
         Expand the user's query with synonyms and related terms for better retrieval.

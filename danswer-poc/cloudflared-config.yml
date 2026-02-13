@@ -1,0 +1,7 @@
+tunnel: 36c99e7b-4778-4185-8331-e98098f9251d
+credentials-file: /etc/cloudflared/credentials.json
+
+ingress:
+  - hostname: onyx.getinstantleads.in
+    service: http://nginx:80
+  - service: http_status:404

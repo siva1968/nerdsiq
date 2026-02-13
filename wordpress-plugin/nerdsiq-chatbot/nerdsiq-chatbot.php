@@ -79,6 +79,12 @@ class NerdsIQ_Chatbot {
         add_action('wp_ajax_nerdsiq_analytics_overview', [$this, 'ajax_analytics_overview']);
         add_action('wp_ajax_nerdsiq_analytics_recent', [$this, 'ajax_analytics_recent']);
         
+        // Log viewer AJAX handlers
+        add_action('wp_ajax_nerdsiq_get_log_dates', [$this, 'ajax_get_log_dates']);
+        add_action('wp_ajax_nerdsiq_get_daily_log', [$this, 'ajax_get_daily_log']);
+        add_action('wp_ajax_nerdsiq_get_weekly_report', [$this, 'ajax_get_weekly_report']);
+        add_action('wp_ajax_nerdsiq_test_email', [$this, 'ajax_test_email']);
+        
         // Admin test connection AJAX handler
         add_action('wp_ajax_nerdsiq_test_connection', [$this, 'ajax_test_connection']);
         
@@ -503,6 +509,16 @@ class NerdsIQ_Chatbot {
             'nerdsiq-settings',
             [$this, 'render_settings_page']
         );
+        
+        // Logs submenu
+        add_submenu_page(
+            'nerdsiq',
+            'Daily Logs',
+            'Daily Logs', 
+            'manage_options',
+            'nerdsiq-logs',
+            [$this, 'render_logs_page']
+        );
     }
     
     /**
@@ -716,6 +732,109 @@ class NerdsIQ_Chatbot {
      */
     public function render_settings_page() {
         include NERDSIQ_PLUGIN_DIR . 'admin/settings-page.php';
+    }
+    
+    /**
+     * Render logs page
+     */
+    public function render_logs_page() {
+        include NERDSIQ_PLUGIN_DIR . 'admin/logs-page.php';
+    }
+    
+    /**
+     * AJAX handler to get available log dates
+     */
+    public function ajax_get_log_dates() {
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'Unauthorized']);
+        }
+        
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'nerdsiq_nonce')) {
+            wp_send_json_error(['message' => 'Invalid nonce']);
+        }
+        
+        $response = $this->api->request('logs/dates', 'GET');
+        
+        if ($response['success']) {
+            wp_send_json_success($response['data']);
+        } else {
+            wp_send_json_error(['message' => $response['error'] ?? 'Failed to fetch log dates']);
+        }
+    }
+    
+    /**
+     * AJAX handler to get daily log
+     */
+    public function ajax_get_daily_log() {
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'Unauthorized']);
+        }
+        
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'nerdsiq_nonce')) {
+            wp_send_json_error(['message' => 'Invalid nonce']);
+        }
+        
+        $date = sanitize_text_field($_POST['date'] ?? '');
+        if (empty($date)) {
+            wp_send_json_error(['message' => 'Date required']);
+        }
+        
+        $response = $this->api->request('logs/daily/' . $date, 'GET');
+        
+        if ($response['success']) {
+            wp_send_json_success($response['data']);
+        } else {
+            wp_send_json_error(['message' => $response['error'] ?? 'Failed to fetch daily log']);
+        }
+    }
+    
+    /**
+     * AJAX handler to get weekly report
+     */
+    public function ajax_get_weekly_report() {
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'Unauthorized']);
+        }
+        
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'nerdsiq_nonce')) {
+            wp_send_json_error(['message' => 'Invalid nonce']);
+        }
+        
+        $end_date = sanitize_text_field($_POST['end_date'] ?? '');
+        
+        $endpoint = 'logs/weekly';
+        if (!empty($end_date)) {
+            $endpoint .= '?end_date=' . urlencode($end_date);
+        }
+        
+        $response = $this->api->request($endpoint, 'GET');
+        
+        if ($response['success']) {
+            wp_send_json_success($response['data']);
+        } else {
+            wp_send_json_error(['message' => $response['error'] ?? 'Failed to fetch weekly report']);
+        }
+    }
+    
+    /**
+     * AJAX handler to test email notifications
+     */
+    public function ajax_test_email() {
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'Unauthorized']);
+        }
+        
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'nerdsiq_nonce')) {
+            wp_send_json_error(['message' => 'Invalid nonce']);
+        }
+        
+        $response = $this->api->request('logs/test-email', 'POST', []);
+        
+        if ($response['success']) {
+            wp_send_json_success($response['data']);
+        } else {
+            wp_send_json_error(['message' => $response['error'] ?? 'Failed to send test email']);
+        }
     }
 }
 
