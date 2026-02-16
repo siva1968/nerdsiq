@@ -1,0 +1,15 @@
+diff --git a/web/src/app/auth/logout/route.ts b/web/src/app/auth/logout/route.ts
+index 9a7d22a..68bb6c4 100644
+--- a/web/src/app/auth/logout/route.ts
++++ b/web/src/app/auth/logout/route.ts
+@@ -12,8 +12,8 @@ export const POST = async (request: NextRequest) => {
+     return new Response(response.body, { status: response?.status });
+   }
+ 
+-  // Delete cookies only if cloud is enabled (jwt auth)
+-  if (NEXT_PUBLIC_CLOUD_ENABLED) {
++  // Delete cookies on logout (fixed for self-hosted instances)
++  if (true) {
+     const cookiesToDelete = ["fastapiusersauth"];
+     const cookieOptions = {
+       path: "/",

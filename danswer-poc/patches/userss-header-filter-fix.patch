@@ -1,0 +1,23 @@
+diff --git a/web/src/lib/userSS.ts b/web/src/lib/userSS.ts
+index 1d94ba0..ec7a95a 100644
+--- a/web/src/lib/userSS.ts
++++ b/web/src/lib/userSS.ts
+@@ -124,9 +124,17 @@ export const getAuthUrlSS = async (
+ };
+ 
+ const logoutStandardSS = async (headers: Headers): Promise<Response> => {
++  // Filter out problematic headers that cause undici errors
++  const filteredHeaders = new Headers();
++  headers.forEach((value, key) => {
++    if (key.toLowerCase() !== 'connection' && key.toLowerCase() !== 'upgrade') {
++      filteredHeaders.set(key, value);
++    }
++  });
++  
+   return await fetch(buildUrl("/auth/logout"), {
+     method: "POST",
+-    headers: headers,
++    headers: filteredHeaders,
+   });
+ };
+ 
